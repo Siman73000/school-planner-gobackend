@@ -9,7 +9,7 @@ import (
 	"strings"
 	"time"
 
-	"schoolplanner-vercel/internal/upstash"
+	"github.com/Siman73000/school-planner-gobackend/internal/upstash"
 )
 
 type Settings struct {
