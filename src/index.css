@@ -2,4 +2,4 @@
 @tailwind components;
 @tailwind utilities;
 
-:root { color-scheme: light; }
+* { transition: background-color 150ms ease, border-color 150ms ease, color 150ms ease; }

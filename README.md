@@ -1,23 +1,21 @@
-# School Planner (Vercel Option B: Go Functions + Vite) — FIXED
+# School Planner — UI/UX Upgrade (Vercel Go Functions + Vite)
 
-This version fixes the Vercel build error:
+Upgrades included:
+- Modern sidebar/topbar layout
+- Dark mode (persisted)
+- Task modal create/edit, tags, estimates, search + filters + sorting
+- Calendar month view with day detail panel
+- Grades tracker (overall + by course)
+- Offline-friendly local cache + retry sync
 
-> use of internal package .../internal/... not allowed
+## Required Vercel Env Vars
+Map your Vercel KV values to the names the Go API reads:
 
-Vercel's Go runtime wraps/relocates function code during build, which can break Go's `internal/` import rules.
-So shared Go code is placed in a **non-internal root package**: `api_utils/`.
+- `UPSTASH_REDIS_REST_URL`  = `KV_REST_API_URL`
+- `UPSTASH_REDIS_REST_TOKEN` = `KV_REST_API_TOKEN` (NOT the read-only one)
 
-## Deploy on Vercel
-Add env vars in Vercel Project → Settings → Environment Variables:
-- `UPSTASH_REDIS_REST_URL`
-- `UPSTASH_REDIS_REST_TOKEN`
 Optional:
 - `PLANNER_API_KEY`
-
-## Routes
-- `GET /api/health`
-- `GET /api/state`
-- `PUT /api/state`
 
 ## Local dev
 Use `vercel dev` so `/api` runs locally:
@@ -26,3 +24,8 @@ npm i
 npm i -g vercel
 vercel dev
 ```
+
+## Routes
+- `GET /api/health`
+- `GET /api/state`
+- `PUT /api/state`

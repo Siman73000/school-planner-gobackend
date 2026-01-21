@@ -28,7 +28,7 @@ func NewUpstashFromEnv() (*UpstashClient, error) {
 	return &UpstashClient{
 		BaseURL: strings.TrimRight(base, "/"),
 		Token:   tok,
-		HTTP: &http.Client{Timeout: 10 * time.Second},
+		HTTP:    &http.Client{Timeout: 10 * time.Second},
 	}, nil
 }
 
@@ -46,6 +46,7 @@ func (c *UpstashClient) do(ctx context.Context, method, path string, body []byte
 	if contentType != "" {
 		req.Header.Set("Content-Type", contentType)
 	}
+
 	res, err := c.HTTP.Do(req)
 	if err != nil {
 		return upstashResp{}, 0, err

@@ -12,17 +12,12 @@ import (
 	"github.com/Siman73000/school-planner-gobackend/api_utils"
 )
 
-type Settings struct {
-	SemesterName string `json:"semesterName"`
-	WeekStartsOn int    `json:"weekStartsOn"` // 0=Sunday, 1=Monday
-}
-
 type AppState struct {
 	Version  int              `json:"version"`
 	Courses  []map[string]any `json:"courses"`
 	Tasks    []map[string]any `json:"tasks"`
 	Grades   []map[string]any `json:"grades"`
-	Settings Settings         `json:"settings"`
+	Settings map[string]any   `json:"settings"`
 }
 
 func defaultState() AppState {
@@ -31,9 +26,11 @@ func defaultState() AppState {
 		Courses: []map[string]any{},
 		Tasks:   []map[string]any{},
 		Grades:  []map[string]any{},
-		Settings: Settings{
-			SemesterName: "Semester",
-			WeekStartsOn: 1,
+		Settings: map[string]any{
+			"semesterName": "Semester",
+			"weekStartsOn": 1,
+			"theme":        "light",
+			"defaultView":  "dashboard",
 		},
 	}
 }
@@ -80,7 +77,7 @@ func State(w http.ResponseWriter, r *http.Request) {
 	case http.MethodPut:
 		body, err := readBodyLimit(r, 2<<20)
 		if err != nil {
-			writeJSON(w, http.StatusBadRequest, map[string]any{"error": err.Error()})
+			writeJSON(w, http.StatusBadRequest, map[string]any{"error": "request too large"})
 			return
 		}
 
@@ -92,11 +89,41 @@ func State(w http.ResponseWriter, r *http.Request) {
 		if st.Version == 0 {
 			st.Version = 1
 		}
-		if st.Settings.SemesterName == "" {
-			st.Settings.SemesterName = "Semester"
+		if st.Courses == nil {
+			st.Courses = []map[string]any{}
 		}
-		if st.Settings.WeekStartsOn != 0 && st.Settings.WeekStartsOn != 1 {
-			st.Settings.WeekStartsOn = 1
+		if st.Tasks == nil {
+			st.Tasks = []map[string]any{}
+		}
+		if st.Grades == nil {
+			st.Grades = []map[string]any{}
+		}
+		if st.Settings == nil {
+			st.Settings = map[string]any{}
+		}
+
+		// normalize known settings while preserving extra keys
+		if _, ok := st.Settings["semesterName"]; !ok {
+			st.Settings["semesterName"] = "Semester"
+		}
+		ws, ok := st.Settings["weekStartsOn"]
+		if ok {
+			f, isF := ws.(float64) // JSON numbers decode as float64
+			if isF {
+				if int(f) != 0 && int(f) != 1 {
+					st.Settings["weekStartsOn"] = 1
+				}
+			} else {
+				st.Settings["weekStartsOn"] = 1
+			}
+		} else {
+			st.Settings["weekStartsOn"] = 1
+		}
+		if _, ok := st.Settings["theme"]; !ok {
+			st.Settings["theme"] = "light"
+		}
+		if _, ok := st.Settings["defaultView"]; !ok {
+			st.Settings["defaultView"] = "dashboard"
 		}
 
 		norm, _ := json.Marshal(st)

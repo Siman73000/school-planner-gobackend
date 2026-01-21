@@ -1,7 +1,5 @@
 node_modules
 dist
 .vercel
-
-# OS
 .DS_Store
 Thumbs.db
