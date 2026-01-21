@@ -9,7 +9,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/Siman73000/school-planner-gobackend/internal/upstash"
+	"github.com/Siman73000/school-planner-gobackend/api_utils"
 )
 
 type Settings struct {
@@ -39,7 +39,6 @@ func defaultState() AppState {
 }
 
 func State(w http.ResponseWriter, r *http.Request) {
-	// Basic CORS (safe even on same-origin). If you want locked-down CORS, set it to your domain only.
 	w.Header().Set("Access-Control-Allow-Origin", "*")
 	w.Header().Set("Access-Control-Allow-Headers", "Content-Type, X-API-Key")
 	w.Header().Set("Access-Control-Allow-Methods", "GET, PUT, OPTIONS")
@@ -48,14 +47,13 @@ func State(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Optional API key
 	apiKey := strings.TrimSpace(os.Getenv("PLANNER_API_KEY"))
 	if apiKey != "" && r.Header.Get("X-API-Key") != apiKey {
 		writeJSON(w, http.StatusUnauthorized, map[string]any{"error": "missing/invalid API key"})
 		return
 	}
 
-	client, err := upstash.NewFromEnv()
+	client, err := api_utils.NewUpstashFromEnv()
 	if err != nil {
 		writeJSON(w, http.StatusInternalServerError, map[string]any{
 			"error": "server misconfigured: " + err.Error(),
@@ -80,13 +78,12 @@ func State(w http.ResponseWriter, r *http.Request) {
 		return
 
 	case http.MethodPut:
-		body, err := readBodyLimit(r, 2<<20) // 2MB
+		body, err := readBodyLimit(r, 2<<20)
 		if err != nil {
 			writeJSON(w, http.StatusBadRequest, map[string]any{"error": err.Error()})
 			return
 		}
 
-		// Validate JSON and normalize
 		var st AppState
 		if err := json.Unmarshal(body, &st); err != nil {
 			writeJSON(w, http.StatusBadRequest, map[string]any{"error": "invalid JSON"})
@@ -103,8 +100,7 @@ func State(w http.ResponseWriter, r *http.Request) {
 		}
 
 		norm, _ := json.Marshal(st)
-
-		if err := client.SetValueBody(r.Context(), "app_state", norm); err != nil {
+		if err := client.SetBody(r.Context(), "app_state", norm); err != nil {
 			writeJSON(w, http.StatusBadGateway, map[string]any{"error": err.Error()})
 			return
 		}

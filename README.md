@@ -1,40 +1,28 @@
-# School Planner (Vercel Option B: Go Functions + Vite)
+# School Planner (Vercel Option B: Go Functions + Vite) — FIXED
 
-This repo is built to deploy on **Vercel**:
-- Frontend: **Vite + React + Tailwind** (static)
-- Backend: **Go Vercel Functions** in `/api` (serverless)
-- Persistence: **Upstash Redis REST** (stores a single JSON blob under key `app_state`)
+This version fixes the Vercel build error:
 
-## Why not SQLite?
-Vercel Functions are serverless and don't provide a persistent writable filesystem. Use an external store instead.
+> use of internal package .../internal/... not allowed
 
-## Required environment variables (Vercel Project → Settings → Environment Variables)
+Vercel's Go runtime wraps/relocates function code during build, which can break Go's `internal/` import rules.
+So shared Go code is placed in a **non-internal root package**: `api_utils/`.
+
+## Deploy on Vercel
+Add env vars in Vercel Project → Settings → Environment Variables:
 - `UPSTASH_REDIS_REST_URL`
 - `UPSTASH_REDIS_REST_TOKEN`
-
 Optional:
-- `PLANNER_API_KEY` (if set, requests must include header `X-API-Key: <value>`)
+- `PLANNER_API_KEY`
 
-## Endpoints
+## Routes
 - `GET /api/health`
 - `GET /api/state`
 - `PUT /api/state`
 
-## Local development
-### Best: `vercel dev` (runs both static + /api functions)
+## Local dev
+Use `vercel dev` so `/api` runs locally:
 ```bash
 npm i
 npm i -g vercel
 vercel dev
 ```
-Open http://localhost:3000
-
-### Frontend only (no API)
-```bash
-npm i
-npm run dev
-```
-
-## Notes
-- State is saved as JSON and returned verbatim for simplicity.
-- If you want multi-user accounts, schedules, calendar export, etc., we can extend the API and storage model.
