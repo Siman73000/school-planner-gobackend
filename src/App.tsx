@@ -431,61 +431,61 @@ export default function App() {
       return;
     }
 
-if (editingTaskId) {
-  setState((s) => {
-    let updated: Task | null = null;
+    if (editingTaskId) {
+      setState((s) => {
+        const nextTasks = s.tasks.map((t) => {
+          if (t.id !== editingTaskId) return t;
 
-    const nextTasks = s.tasks.map((t) => {
-      if (t.id !== editingTaskId) return t;
+          const nextEarned =
+            typeof t.pointsEarned === "number" && typeof pts === "number"
+              ? clamp(t.pointsEarned, 0, pts)
+              : t.pointsEarned;
 
-      const nextEarned =
-        typeof t.pointsEarned === "number" && typeof pts === "number" ? clamp(t.pointsEarned, 0, pts) : t.pointsEarned;
+          return {
+            ...t,
+            title: taskTitle.trim(),
+            courseId: taskCourse === "none" ? undefined : taskCourse,
+            dueISO,
+            priority: taskPriority,
+            notes: taskNotes.trim() || undefined,
+            tags,
+            estimateMinutes: est,
+            pointsPossible: pts,
+            pointsEarned: nextEarned,
+          };
+        });
 
-      updated = {
-        ...t,
-        title: taskTitle.trim(),
-        courseId: taskCourse === "none" ? undefined : taskCourse,
-        dueISO,
-        priority: taskPriority,
-        notes: taskNotes.trim() || undefined,
-        tags,
-        estimateMinutes: est,
-        pointsPossible: pts,
-        pointsEarned: nextEarned,
-      };
+        const updated = nextTasks.find((t) => t.id === editingTaskId);
+        let nextGrades = s.grades.slice();
 
-      return updated;
-    });
+        // Keep auto-grade items in sync when editing a completed task.
+        if (updated && updated.done) {
+          if (
+            typeof updated.pointsPossible === "number" &&
+            updated.pointsPossible > 0 &&
+            typeof updated.pointsEarned === "number"
+          ) {
+            const existing = nextGrades.find((g) => g.taskId === updated.id);
+            const item: GradeItem = {
+              id: existing?.id ?? uid("grade"),
+              taskId: updated.id,
+              courseId: updated.courseId,
+              name: updated.title,
+              scoreEarned: clamp(updated.pointsEarned, 0, updated.pointsPossible),
+              scoreTotal: updated.pointsPossible,
+              dueISO: updated.dueISO,
+              createdISO: existing?.createdISO ?? new Date().toISOString(),
+            };
+            nextGrades = existing
+              ? nextGrades.map((g) => (g.taskId === updated.id ? item : g))
+              : [item, ...nextGrades];
+          } else {
+            nextGrades = nextGrades.filter((g) => g.taskId !== updated.id);
+          }
+        }
 
-    let nextGrades = s.grades.slice();
-
-    // Keep auto-grade items in sync when editing a completed task.
-    if (updated?.done) {
-      if (
-        typeof updated.pointsPossible === "number" &&
-        updated.pointsPossible > 0 &&
-        typeof updated.pointsEarned === "number"
-      ) {
-        const existing = nextGrades.find((g) => g.taskId === updated!.id);
-        const item: GradeItem = {
-          id: existing?.id ?? uid("grade"),
-          taskId: updated.id,
-          courseId: updated.courseId,
-          name: updated.title,
-          scoreEarned: clamp(updated.pointsEarned, 0, updated.pointsPossible),
-          scoreTotal: updated.pointsPossible,
-          dueISO: updated.dueISO,
-          createdISO: existing?.createdISO ?? new Date().toISOString(),
-        };
-        nextGrades = existing ? nextGrades.map((g) => (g.taskId === updated!.id ? item : g)) : [item, ...nextGrades];
-      } else {
-        nextGrades = nextGrades.filter((g) => g.taskId !== updated!.id);
-      }
-    }
-
-    return { ...s, tasks: nextTasks, grades: nextGrades };
-  });
-
+        return { ...s, tasks: nextTasks, grades: nextGrades };
+      });
     } else {
       const newTask: Task = {
         id: uid("task"),
