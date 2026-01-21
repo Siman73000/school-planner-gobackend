@@ -1,6 +1,9 @@
 # School Planner — UI/UX Upgrade (Vercel Go Functions + Vite)
 
 Upgrades included:
+- Points + auto-grades (prompt when completing a task)
+- Click calendar tasks to view details modal
+
 - Modern sidebar/topbar layout
 - Dark mode (persisted)
 - Task modal create/edit, tags, estimates, search + filters + sorting

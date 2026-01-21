@@ -22,7 +22,7 @@ type AppState struct {
 
 func defaultState() AppState {
 	return AppState{
-		Version: 1,
+		Version: 2,
 		Courses: []map[string]any{},
 		Tasks:   []map[string]any{},
 		Grades:  []map[string]any{},
@@ -87,7 +87,7 @@ func State(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		if st.Version == 0 {
-			st.Version = 1
+			st.Version = 2
 		}
 		if st.Courses == nil {
 			st.Courses = []map[string]any{}
