@@ -39,7 +39,7 @@ func defaultState() AppState {
 }
 
 func State(w http.ResponseWriter, r *http.Request) {
-	// Basic CORS for safety (same-origin is typical on Vercel)
+	// Basic CORS (safe even on same-origin). If you want locked-down CORS, set it to your domain only.
 	w.Header().Set("Access-Control-Allow-Origin", "*")
 	w.Header().Set("Access-Control-Allow-Headers", "Content-Type, X-API-Key")
 	w.Header().Set("Access-Control-Allow-Methods", "GET, PUT, OPTIONS")
@@ -74,7 +74,6 @@ func State(w http.ResponseWriter, r *http.Request) {
 			writeJSON(w, http.StatusOK, defaultState())
 			return
 		}
-		// Return raw JSON
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(http.StatusOK)
 		_, _ = w.Write([]byte(val))
@@ -87,7 +86,7 @@ func State(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		// Validate it's JSON (and ensure it has version/settings)
+		// Validate JSON and normalize
 		var st AppState
 		if err := json.Unmarshal(body, &st); err != nil {
 			writeJSON(w, http.StatusBadRequest, map[string]any{"error": "invalid JSON"})
@@ -96,7 +95,6 @@ func State(w http.ResponseWriter, r *http.Request) {
 		if st.Version == 0 {
 			st.Version = 1
 		}
-		// normalize
 		if st.Settings.SemesterName == "" {
 			st.Settings.SemesterName = "Semester"
 		}
@@ -105,7 +103,8 @@ func State(w http.ResponseWriter, r *http.Request) {
 		}
 
 		norm, _ := json.Marshal(st)
-		if err := client.SetString(r.Context(), "app_state", string(norm)); err != nil {
+
+		if err := client.SetValueBody(r.Context(), "app_state", norm); err != nil {
 			writeJSON(w, http.StatusBadGateway, map[string]any{"error": err.Error()})
 			return
 		}

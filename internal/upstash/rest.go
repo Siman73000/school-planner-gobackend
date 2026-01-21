@@ -39,15 +39,16 @@ type response struct {
 	Error  string          `json:"error"`
 }
 
-func (c *Client) do(ctx context.Context, method, path string, body []byte) (response, int, error) {
+func (c *Client) do(ctx context.Context, method, path string, body []byte, contentType string) (response, int, error) {
 	req, err := http.NewRequestWithContext(ctx, method, c.BaseURL+path, bytes.NewReader(body))
 	if err != nil {
 		return response{}, 0, err
 	}
 	req.Header.Set("Authorization", "Bearer "+c.Token)
-	if method == http.MethodPost || method == http.MethodPut {
-		req.Header.Set("Content-Type", "application/json")
+	if contentType != "" {
+		req.Header.Set("Content-Type", contentType)
 	}
+
 	res, err := c.HTTP.Do(req)
 	if err != nil {
 		return response{}, 0, err
@@ -67,7 +68,7 @@ func (c *Client) do(ctx context.Context, method, path string, body []byte) (resp
 }
 
 func (c *Client) GetString(ctx context.Context, key string) (string, bool, error) {
-	out, _, err := c.do(ctx, http.MethodGet, "/get/"+urlEscapeKey(key), nil)
+	out, _, err := c.do(ctx, http.MethodGet, "/get/"+urlEscapeKey(key), nil, "")
 	if err != nil {
 		return "", false, err
 	}
@@ -82,16 +83,21 @@ func (c *Client) GetString(ctx context.Context, key string) (string, bool, error
 	return s, true, nil
 }
 
-func (c *Client) SetString(ctx context.Context, key string, value string) error {
-	// Use POST body so we don't hit URL length limits
-	// POST /set/<key> with body => SET key <body>
-	_, _, err := c.do(ctx, http.MethodPost, "/set/"+urlEscapeKey(key), []byte(value))
+func (c *Client) SetValueBody(ctx context.Context, key string, value []byte) error {
+	// Upstash supports: POST -d '$VALUE' REST_URL/set/<key>
+	_, _, err := c.do(ctx, http.MethodPost, "/set/"+urlEscapeKey(key), value, "text/plain; charset=utf-8")
 	return err
 }
 
-// Upstash expects path segments; keys should be safe.
-// We'll do a conservative escape for ':' and spaces.
 func urlEscapeKey(k string) string {
-	repl := strings.NewReplacer(" ", "%20", ":", "%3A", "/", "%2F", "%", "%25")
+	// Conservative escaping for a few path-sensitive chars
+	repl := strings.NewReplacer(
+		"%", "%25",
+		" ", "%20",
+		":", "%3A",
+		"/", "%2F",
+		"?", "%3F",
+		"#", "%23",
+	)
 	return repl.Replace(k)
 }

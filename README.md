@@ -1,46 +1,40 @@
 # School Planner (Vercel Option B: Go Functions + Vite)
 
-This version is built for **Vercel**:
+This repo is built to deploy on **Vercel**:
 - Frontend: **Vite + React + Tailwind** (static)
-- Backend: **Go Vercel Functions** in `/api` (no always-on server)
-- Persistence: **Upstash Redis REST** (single JSON blob)
+- Backend: **Go Vercel Functions** in `/api` (serverless)
+- Persistence: **Upstash Redis REST** (stores a single JSON blob under key `app_state`)
 
 ## Why not SQLite?
-Vercel Functions are serverless and don't support a persistent local filesystem for SQLite writes.
-Use an external store instead (Upstash in this repo).
+Vercel Functions are serverless and don't provide a persistent writable filesystem. Use an external store instead.
 
-## Deploy on Vercel (production)
-1) Create an Upstash Redis database (free tier is fine).
-2) In Upstash Console, copy:
-   - `UPSTASH_REDIS_REST_URL` (HTTPS endpoint)
-   - `UPSTASH_REDIS_REST_TOKEN` (standard token)
-3) In Vercel Project → Settings → Environment Variables, add:
-   - `UPSTASH_REDIS_REST_URL`
-   - `UPSTASH_REDIS_REST_TOKEN`
-   Optional:
-   - `PLANNER_API_KEY` (if set, frontend must send `X-API-Key`)
-4) Deploy.
+## Required environment variables (Vercel Project → Settings → Environment Variables)
+- `UPSTASH_REDIS_REST_URL`
+- `UPSTASH_REDIS_REST_TOKEN`
 
-## Local dev
-### Option 1: Vercel dev (recommended)
+Optional:
+- `PLANNER_API_KEY` (if set, requests must include header `X-API-Key: <value>`)
+
+## Endpoints
+- `GET /api/health`
+- `GET /api/state`
+- `PUT /api/state`
+
+## Local development
+### Best: `vercel dev` (runs both static + /api functions)
 ```bash
 npm i
-npm run build
 npm i -g vercel
 vercel dev
 ```
 Open http://localhost:3000
 
-### Option 2: Frontend only (no API)
+### Frontend only (no API)
 ```bash
 npm i
 npm run dev
 ```
-Saving won't work unless you also run functions via `vercel dev`.
 
-## API
-- `GET /api/health`
-- `GET /api/state`
-- `PUT /api/state`
-
-Data is stored in Redis under key `app_state`.
+## Notes
+- State is saved as JSON and returned verbatim for simplicity.
+- If you want multi-user accounts, schedules, calendar export, etc., we can extend the API and storage model.
