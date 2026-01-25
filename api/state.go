@@ -9,7 +9,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/Siman73000/school-planner-gobackend/api_utils"
+	"github.com/Siman73000/workorschool-planner/api_utils"
 )
 
 type AppState struct {
@@ -36,6 +36,7 @@ func defaultState() AppState {
 }
 
 func State(w http.ResponseWriter, r *http.Request) {
+	// CORS
 	w.Header().Set("Access-Control-Allow-Origin", "*")
 	w.Header().Set("Access-Control-Allow-Headers", "Content-Type, X-API-Key")
 	w.Header().Set("Access-Control-Allow-Methods", "GET, PUT, OPTIONS")
@@ -44,13 +45,17 @@ func State(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// API key check (optional)
 	apiKey := strings.TrimSpace(os.Getenv("PLANNER_API_KEY"))
 	if apiKey != "" && r.Header.Get("X-API-Key") != apiKey {
-		writeJSON(w, http.StatusUnauthorized, map[string]any{"error": "missing/invalid API key"})
+		writeJSON(w, http.StatusUnauthorized, map[string]any{
+			"error": "missing/invalid API key",
+		})
 		return
 	}
 
-	client, err := api_utils.NewUpstashFromEnv()
+	// 🔑 NEW: auto-detect Redis Cloud or Upstash
+	kv, err := api_utils.NewKVFromEnv()
 	if err != nil {
 		writeJSON(w, http.StatusInternalServerError, map[string]any{
 			"error": "server misconfigured: " + err.Error(),
@@ -59,33 +64,44 @@ func State(w http.ResponseWriter, r *http.Request) {
 	}
 
 	switch r.Method {
+
 	case http.MethodGet:
-		val, ok, err := client.GetString(r.Context(), "app_state")
+		val, ok, err := kv.GetString(r.Context(), "app_state")
 		if err != nil {
-			writeJSON(w, http.StatusBadGateway, map[string]any{"error": err.Error()})
+			writeJSON(w, http.StatusBadGateway, map[string]any{
+				"error": err.Error(),
+			})
 			return
 		}
+
 		if !ok || strings.TrimSpace(val) == "" {
 			writeJSON(w, http.StatusOK, defaultState())
 			return
 		}
+
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(http.StatusOK)
 		_, _ = w.Write([]byte(val))
 		return
 
 	case http.MethodPut:
-		body, err := readBodyLimit(r, 2<<20)
+		body, err := readBodyLimit(r, 2<<20) // 2MB
 		if err != nil {
-			writeJSON(w, http.StatusBadRequest, map[string]any{"error": "request too large"})
+			writeJSON(w, http.StatusBadRequest, map[string]any{
+				"error": "request too large",
+			})
 			return
 		}
 
 		var st AppState
 		if err := json.Unmarshal(body, &st); err != nil {
-			writeJSON(w, http.StatusBadRequest, map[string]any{"error": "invalid JSON"})
+			writeJSON(w, http.StatusBadRequest, map[string]any{
+				"error": "invalid JSON",
+			})
 			return
 		}
+
+		// Normalize defaults
 		if st.Version == 0 {
 			st.Version = 2
 		}
@@ -102,14 +118,13 @@ func State(w http.ResponseWriter, r *http.Request) {
 			st.Settings = map[string]any{}
 		}
 
-		// normalize known settings while preserving extra keys
+		// Normalize known settings (preserve extras)
 		if _, ok := st.Settings["semesterName"]; !ok {
 			st.Settings["semesterName"] = "Semester"
 		}
-		ws, ok := st.Settings["weekStartsOn"]
-		if ok {
-			f, isF := ws.(float64) // JSON numbers decode as float64
-			if isF {
+
+		if ws, ok := st.Settings["weekStartsOn"]; ok {
+			if f, isF := ws.(float64); isF {
 				if int(f) != 0 && int(f) != 1 {
 					st.Settings["weekStartsOn"] = 1
 				}
@@ -119,6 +134,7 @@ func State(w http.ResponseWriter, r *http.Request) {
 		} else {
 			st.Settings["weekStartsOn"] = 1
 		}
+
 		if _, ok := st.Settings["theme"]; !ok {
 			st.Settings["theme"] = "light"
 		}
@@ -127,8 +143,11 @@ func State(w http.ResponseWriter, r *http.Request) {
 		}
 
 		norm, _ := json.Marshal(st)
-		if err := client.SetBody(r.Context(), "app_state", norm); err != nil {
-			writeJSON(w, http.StatusBadGateway, map[string]any{"error": err.Error()})
+
+		if err := kv.SetBody(r.Context(), "app_state", norm); err != nil {
+			writeJSON(w, http.StatusBadGateway, map[string]any{
+				"error": err.Error(),
+			})
 			return
 		}
 
@@ -146,6 +165,7 @@ func State(w http.ResponseWriter, r *http.Request) {
 func readBodyLimit(r *http.Request, max int64) ([]byte, error) {
 	defer r.Body.Close()
 	lr := io.LimitReader(r.Body, max+1)
+
 	var buf bytes.Buffer
 	if _, err := buf.ReadFrom(lr); err != nil {
 		return nil, err
